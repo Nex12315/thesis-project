@@ -1,6 +1,6 @@
+from typing import List
 import os
 import glob
-from typing import List
 
 from langchain_community.document_loaders import (
     PyPDFLoader,
