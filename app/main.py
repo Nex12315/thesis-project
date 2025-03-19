@@ -32,7 +32,6 @@ class QueryRequest(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
-    sources: list = []
 
 
 class IndexingRequest(BaseModel):
@@ -82,16 +81,7 @@ async def query(
         # Generate response using LLM
         answer = llm_service.generate_response(request.query, context_docs)
 
-        # Prepare source information
-        sources = [
-            {
-                'title': os.path.basename(doc.metadata.get('source', 'Unknown')),
-                'source': doc.metadata.get('source', 'Unknown'),
-            }
-            for doc in context_docs
-        ]
-
-        return {'answer': answer, 'sources': sources}
+        return {'answer': answer}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error processing query: {str(e)}')
