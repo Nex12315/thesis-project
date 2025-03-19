@@ -2,7 +2,7 @@
 export interface Message {
   text: string;
   isUser: boolean;
-  sources?: Source[];
+  isStreaming?: boolean;
 }
 
 export interface Source {
@@ -18,7 +18,6 @@ export interface QueryRequest {
 
 export interface QueryResponse {
   answer: string;
-  sources: Source[];
 }
 
 export interface HealthResponse {

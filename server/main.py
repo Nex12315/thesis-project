@@ -1,4 +1,4 @@
-import os
+import json
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends, Body, BackgroundTasks
@@ -87,6 +87,55 @@ async def query(
         raise HTTPException(status_code=500, detail=f'Error processing query: {str(e)}')
 
 
+@app.post('/query-stream')
+async def query_stream(
+    request: QueryRequest,
+    embedding_service: EmbeddingService = Depends(get_embedding_service),
+):
+    '''Process a query and return a streaming response.'''
+    try:
+        # Get relevant documents
+        context_docs = embedding_service.similarity_search(
+            request.query,
+            k=request.max_context_docs,
+        )
+
+        # Create a streaming response generator
+        async def stream_generator():
+            # Stream the actual response
+            full_response = ""
+            try:
+                for line in llm_service.generate_streaming_response(
+                    request.query, context_docs
+                ):
+                    if line:
+                        try:
+                            # Parse the line as JSON if it's from Ollama
+                            line_data = json.loads(line)
+                            if "response" in line_data:
+                                chunk = line_data["response"]
+                                full_response += chunk
+                                # Send the chunk as a JSON event
+                                yield f"data: {json.dumps({'type': 'content', 'data': chunk})}\n\n"
+                        except json.JSONDecodeError:
+                            # If it's not valid JSON, just send the raw line
+                            chunk = line.decode('utf-8')
+                            full_response += chunk
+                            yield f"data: {json.dumps({'type': 'content', 'data': chunk})}\n\n"
+
+                # Send a completion event
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            except Exception as e:
+                error_msg = f"Error during streaming: {str(e)}"
+                print(error_msg)
+                yield f"data: {json.dumps({'type': 'error', 'data': error_msg})}\n\n"
+
+        return StreamingResponse(stream_generator(), media_type="text/event-stream")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Error processing query: {str(e)}')
+
+
 @app.post('/index', response_model=IndexingResponse)
 async def index_documents(
     background_tasks: BackgroundTasks,
@@ -110,6 +159,39 @@ async def index_documents(
         raise HTTPException(
             status_code=500, detail=f'Error indexing documents: {str(e)}'
         )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the vector store on server startup."""
+    print("Checking if vector store exists...")
+
+    # Check if vector store already exists
+    vector_store_exists = embedding_service.load_vector_store()
+
+    if not vector_store_exists:
+        print("Vector store not found. Starting document indexing...")
+        documents_directory = os.getenv("DOCUMENTS_DIR", "./data/documents")
+
+        # Ensure documents directory exists
+        if not os.path.exists(documents_directory):
+            os.makedirs(documents_directory, exist_ok=True)
+            print(f"Created documents directory at {documents_directory}")
+
+        # Check if there are documents to index
+        if any(os.scandir(documents_directory)):
+            try:
+                # Use threadpool to avoid blocking startup
+                await run_in_threadpool(index_documents_task, documents_directory)
+                print("Initial document indexing completed")
+            except Exception as e:
+                print(f"Error during initial indexing: {e}")
+        else:
+            print(
+                f"No documents found in {documents_directory}. Add documents and use /index endpoint to index them."
+            )
+    else:
+        print("Vector store loaded successfully")
 
 
 @app.get('/health')

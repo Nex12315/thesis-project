@@ -86,6 +86,16 @@ const Chat: React.FC = () => {
     );
   }
 
+  // Add welcome message if API is healthy
+  if (isHealthy) {
+    setMessages([
+      {
+        text: "Welcome to the Arctic Valley AI Advisor! How can I help you with your business simulation project?",
+        isUser: false,
+      },
+    ]);
+  }
+
   return (
     <div className="chat-container">
       <div className="messages-container">

@@ -1,5 +1,4 @@
-// src/components/ChatMessage.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Message } from "../types";
 
 interface ChatMessageProps {
@@ -8,21 +7,33 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser }) => {
+  const [cursorVisible, setCursorVisible] = useState(true);
+
+  // Add blinking cursor effect for streaming messages
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+
+    if (message.isStreaming) {
+      interval = setInterval(() => {
+        setCursorVisible((prev) => !prev);
+      }, 500);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [message.isStreaming]);
+
   return (
     <div className={`chat-message ${isUser ? "user-message" : "ai-message"}`}>
       <div className="message-avatar">{isUser ? "👤" : "🤖"}</div>
       <div className="message-content">
-        <p>{message.text}</p>
-        {!isUser && message.sources && message.sources.length > 0 && (
-          <div className="message-sources">
-            <small>Sources:</small>
-            <ul>
-              {message.sources.map((source, index) => (
-                <li key={index}>{source.title}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <p>
+          {message.text}
+          {message.isStreaming && cursorVisible && (
+            <span className="cursor">|</span>
+          )}
+        </p>
       </div>
     </div>
   );
