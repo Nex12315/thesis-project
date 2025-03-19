@@ -3,9 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends, Body, BackgroundTasks
 
-from app.document_loader import process_documents
-from app.llm_service import LLMService
-from app.embeddings import EmbeddingService
+from server.document_loader import process_documents
+from server.llm_service import LLMService
+from server.embeddings import EmbeddingService
 
 # Initialize the FastAPI app
 app = FastAPI(title='Arctic Valley AI Advisor')
