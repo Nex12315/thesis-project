@@ -5,11 +5,6 @@ export interface Message {
   isStreaming?: boolean;
 }
 
-export interface Source {
-  title: string;
-  source: string;
-}
-
 // API-related types
 export interface QueryRequest {
   query: string;

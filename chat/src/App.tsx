@@ -12,7 +12,7 @@ const App: React.FC = () => {
         <Chat />
       </main>
       <footer className="app-footer">
-        <p>© 2024 Arctic Valley AI Advisor | Student Thesis Project</p>
+        <p>© 2025 Arctic Valley AI Advisor | Student Thesis Project</p>
       </footer>
     </div>
   );

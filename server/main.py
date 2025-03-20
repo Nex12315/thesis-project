@@ -1,7 +1,13 @@
 import json
+import os
+from typing import AsyncGenerator
+from starlette.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends, Body, BackgroundTasks
+from starlette.concurrency import run_in_threadpool
+from starlette.responses import StreamingResponse
+from fastapi.concurrency import run_in_threadpool
 
 from server.document_loader import process_documents
 from server.llm_service import LLMService
@@ -101,7 +107,7 @@ async def query_stream(
         )
 
         # Create a streaming response generator
-        async def stream_generator():
+        async def stream_generator() -> AsyncGenerator[str, None]:
             # Stream the actual response
             full_response = ""
             try:
@@ -119,7 +125,11 @@ async def query_stream(
                                 yield f"data: {json.dumps({'type': 'content', 'data': chunk})}\n\n"
                         except json.JSONDecodeError:
                             # If it's not valid JSON, just send the raw line
-                            chunk = line.decode('utf-8')
+                            chunk = (
+                                line.decode('utf-8')
+                                if isinstance(line, bytes)
+                                else line
+                            )
                             full_response += chunk
                             yield f"data: {json.dumps({'type': 'content', 'data': chunk})}\n\n"
 

@@ -7,15 +7,19 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser }) => {
-  const [cursorVisible, setCursorVisible] = useState(true);
+  const [dots, setDots] = useState(".");
 
-  // Add blinking cursor effect for streaming messages
+  // Create animated dots when streaming
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
 
     if (message.isStreaming) {
       interval = setInterval(() => {
-        setCursorVisible((prev) => !prev);
+        setDots((prev) => {
+          if (prev === ".") return "..";
+          if (prev === "..") return "...";
+          return ".";
+        });
       }, 500);
     }
 
@@ -30,9 +34,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser }) => {
       <div className="message-content">
         <p>
           {message.text}
-          {message.isStreaming && cursorVisible && (
-            <span className="cursor">|</span>
-          )}
+          {message.isStreaming && <span className="loading-dots">{dots}</span>}
         </p>
       </div>
     </div>

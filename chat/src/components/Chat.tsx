@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
-import { sendQuery, checkApiHealth } from "../services/api";
+import { sendStreamingQuery, checkApiHealth } from "../services/api";
 import { Message, ApiStatus } from "../types";
 
 const Chat: React.FC = () => {
@@ -23,7 +23,6 @@ const Chat: React.FC = () => {
           {
             text: "Welcome to the Arctic Valley AI Advisor! How can I help you with your business simulation project?",
             isUser: false,
-            sources: [],
           },
         ]);
       }
@@ -43,18 +42,67 @@ const Chat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Send query to API
-      const response = await sendQuery(text);
-
-      // Add AI response to chat
+      // Add a placeholder message for the AI response
       setMessages((prev) => [
         ...prev,
         {
-          text: response.answer,
+          text: "", // Start with empty text
           isUser: false,
-          sources: response.sources || [],
+          isStreaming: true, // This triggers the loading dots animation
+          sources: [],
         },
       ]);
+
+      // Use streaming query
+      await sendStreamingQuery(
+        text,
+        4,
+        // On each chunk, update the message
+        (chunk) => {
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const aiMessage = newMessages[newMessages.length - 1];
+
+            newMessages[newMessages.length - 1] = {
+              ...aiMessage,
+              text: aiMessage.text + chunk,
+            };
+
+            return newMessages;
+          });
+        },
+        // On done, remove the streaming status
+        () => {
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const aiMessage = newMessages[newMessages.length - 1];
+
+            newMessages[newMessages.length - 1] = {
+              ...aiMessage,
+              isStreaming: false, // This removes the loading dots
+            };
+
+            return newMessages;
+          });
+          setIsLoading(false);
+        },
+        // On error
+        (error) => {
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            const aiMessage = newMessages[newMessages.length - 1];
+
+            newMessages[newMessages.length - 1] = {
+              ...aiMessage,
+              text: `Sorry, I encountered an error: ${error}`,
+              isStreaming: false,
+            };
+
+            return newMessages;
+          });
+          setIsLoading(false);
+        }
+      );
     } catch (error) {
       // Add error message to chat
       setMessages((prev) => [
@@ -65,7 +113,6 @@ const Chat: React.FC = () => {
           sources: [],
         },
       ]);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -86,23 +133,13 @@ const Chat: React.FC = () => {
     );
   }
 
-  // Add welcome message if API is healthy
-  if (isHealthy) {
-    setMessages([
-      {
-        text: "Welcome to the Arctic Valley AI Advisor! How can I help you with your business simulation project?",
-        isUser: false,
-      },
-    ]);
-  }
-
   return (
     <div className="chat-container">
       <div className="messages-container">
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} isUser={message.isUser} />
         ))}
-        {isLoading && (
+        {isLoading && !messages[messages.length - 1]?.isStreaming && (
           <div className="loading-indicator">
             <div className="typing-indicator">
               <span></span>
